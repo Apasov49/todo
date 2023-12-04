@@ -1,96 +1,97 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { FlatList, StyleSheet, Text, SafeAreaView, TextInput } from 'react-native';
+import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const STORAGE_KEY = 'todos';
 
 export default function App() {
+  const [newTodo, setNewTodo] = useState('');
   const [todos, setTodos] = useState([]);
-  const [todoText, setTodoText] = useState('');
 
-  const addTodo = () => {
-    if (todoText.trim() !== '') {
-      setTodos([...todos, { id: Date.now(), text: todoText }]);
-      setTodoText('');
+  const storeData = async (value) => {
+    try {
+      const jsonValue = JSON.stringify(value);
+      await AsyncStorage.setItem(STORAGE_KEY, jsonValue);
+    } catch (e) {
+      console.log(e);
     }
   };
 
-  const removeTodo = (id) => {
-    setTodos(todos.filter(todo => todo.id !== id));
+  const addTodo = () => {
+    const newKey = String(todos.length);
+    const object = { key: newKey, description: newTodo };
+    const newTodos = [...todos, object];
+    storeData(newTodos);
+    setTodos(newTodos);
+    setNewTodo('');
   };
 
+  const getData = async () => {
+    try {
+      AsyncStorage.getItem(STORAGE_KEY)
+        .then((req) => JSON.parse(req))
+        .then((json) => {
+          if (json === null) {
+            json = [];
+          }
+          setTodos(json);
+        });
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  useEffect(() => {
+    // AsyncStorage.clear();
+    getData();
+  }, []);
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: Constants.statusBarHeight,
+      backgroundColor: '#fff',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heading: {
+      fontSize: 24,
+      textAlign: 'center',
+      marginTop: 8,
+      marginBottom: 8,
+    },
+    input: {
+      backgroundColor: '#F0F0F0',
+      borderColor: '#FAFAFA',
+      height: 40,
+      margin: 8,
+    },
+    list: {
+      margin: 8,
+    },
+    row: {
+      height: 30,
+    },
+  });
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Todo App</Text>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Add a new todo"
-          value={todoText}
-          onChangeText={text => setTodoText(text)}
-        />
-        <TouchableOpacity style={styles.addButton} onPress={addTodo}>
-          <Text style={styles.buttonText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={todos}
-        keyExtractor={item => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.todoItem}>
-            <Text>{item.text}</Text>
-            <TouchableOpacity onPress={() => removeTodo(item.id)}>
-              <Text style={styles.removeButton}>Remove</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.heading}>Todos</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Enter new todo..."
+        value={newTodo}
+        onChangeText={(text) => setNewTodo(text)}
+        returnKeyType="done"
+        onSubmitEditing={addTodo}
       />
-    </View>
+      <FlatList
+        style={styles.list}
+        data={todos}
+        extraData={todos}
+        renderItem={({ item }) => <Text>{item.description}</Text>}
+      />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    marginRight: 10,
-  },
-  addButton: {
-    backgroundColor: 'blue',
-    padding: 10,
-    borderRadius: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: 'white',
-  },
-  todoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '80%',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-  },
-  removeButton: {
-    color: 'red',
-  },
-});
